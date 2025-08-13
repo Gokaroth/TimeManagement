@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Task Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://pixijs.download/release/pixi.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header__left">
+            <h1 class="header__title">Timeline Task Manager</h1>
+            <div class="header__time">
+                <span id="currentTime">--:--</span>
+            </div>
+        </div>
+        <div class="header__controls">
+            <button class="btn btn--secondary btn--sm" id="playPauseBtn">
+                <span id="playPauseText">⏸️ Pause</span>
+            </button>
+            <button class="btn btn--secondary btn--sm" id="jumpToNowBtn">📍 Now</button>
+            <button class="btn btn--secondary btn--sm" id="zoomOutBtn">🔍-</button>
+            <button class="btn btn--secondary btn--sm" id="zoomInBtn">🔍+</button>
+            <button class="btn btn--primary btn--sm" id="addTaskBtn">+ Add Task</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar__header">
+                <h3>Tasks</h3>
+                <div class="sidebar__search">
+                    <input type="text" class="form-control" id="taskSearch" placeholder="Search tasks...">
+                </div>
+                <div class="sidebar__filters">
+                    <select class="form-control" id="statusFilter">
+                        <option value="all">All Tasks</option>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sidebar__content">
+                <div id="taskList" class="task-list">
+                    <!-- Tasks will be populated here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Timeline Container -->
+        <div class="timeline-container">
+            <div class="timeline-header">
+                <div class="timeline-info">
+                    <span class="timeline-date" id="timelineDate">Tuesday, August 12, 2025</span>
+                    <span class="timeline-zoom">Zoom: <span id="zoomLevel">1x</span></span>
+                </div>
+            </div>
+            <div class="timeline-canvas-container">
+                <div id="timelineCanvas"></div>
+                <div id="timelineOverlay" class="timeline-overlay"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="modal hidden">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 id="modalTitle">Add New Task</h3>
+                <button class="modal__close" id="closeModal">×</button>
+            </div>
+            <div class="modal__body">
+                <form id="taskForm">
+                    <div class="form-group">
+                        <label class="form-label" for="taskTitle">Title</label>
+                        <input type="text" class="form-control" id="taskTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="taskStartTime">Start Time</label>
+                        <input type="datetime-local" class="form-control" id="taskStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="taskDuration">Duration (minutes)</label>
+                        <input type="number" class="form-control" id="taskDuration" min="15" step="15" value="60" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="taskColor">Color</label>
+                        <div class="color-picker">
+                            <input type="color" class="form-control color-input" id="taskColor" value="#3B82F6">
+                            <div class="color-presets">
+                                <button type="button" class="color-preset" data-color="#3B82F6" style="background: #3B82F6;"></button>
+                                <button type="button" class="color-preset" data-color="#10B981" style="background: #10B981;"></button>
+                                <button type="button" class="color-preset" data-color="#F59E0B" style="background: #F59E0B;"></button>
+                                <button type="button" class="color-preset" data-color="#EF4444" style="background: #EF4444;"></button>
+                                <button type="button" class="color-preset" data-color="#8B5CF6" style="background: #8B5CF6;"></button>
+                                <button type="button" class="color-preset" data-color="#06B6D4" style="background: #06B6D4;"></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="taskStatus">Status</label>
+                        <select class="form-control" id="taskStatus">
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer">
+                <button type="button" class="btn btn--secondary" id="cancelTask">Cancel</button>
+                <button type="button" class="btn btn--outline" id="deleteTask" style="display: none;">Delete</button>
+                <button type="submit" class="btn btn--primary" form="taskForm" id="saveTask">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu hidden">
+        <button class="context-menu__item" id="editTaskContext">Edit Task</button>
+        <button class="context-menu__item" id="deleteTaskContext">Delete Task</button>
+        <button class="context-menu__item" id="duplicateTaskContext">Duplicate Task</button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loadingIndicator" class="loading-indicator hidden">
+        <div class="loading-spinner"></div>
+        <span>Loading timeline...</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
