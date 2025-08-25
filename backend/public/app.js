@@ -99,40 +99,6 @@ class APIService {
     }
 }
 
-    // Task CRUD operations
-    async getAllTasks() {
-        return this.request('/tasks');
-    }
-
-    async getTask(id) {
-        return this.request(`/tasks/${id}`);
-    }
-
-    async createTask(taskData) {
-        return this.request('/tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-        });
-    }
-
-    async updateTask(id, taskData) {
-        return this.request(`/tasks/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(taskData),
-        });
-    }
-
-    async deleteTask(id) {
-        return this.request(`/tasks/${id}`, {
-            method: 'DELETE',
-        });
-    }
-
-    async healthCheck() {
-        return this.request('/health');
-    }
-}
-
 // WebSocket Service for real-time updates
 class WebSocketService {
     constructor(onMessage) {

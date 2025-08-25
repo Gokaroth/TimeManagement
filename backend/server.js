@@ -13,10 +13,7 @@ const PORT = process.env.PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/timeline-tasks';
 
 // Database connection
-mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
+mongoose.connect(MONGODB_URI).then(() => {
     console.log('Connected to MongoDB');
 }).catch(err => {
     console.error('MongoDB connection error:', err);
@@ -34,6 +31,8 @@ const taskSchema = new mongoose.Schema({
         default: 'pending' 
     },
     userId: { type: String, default: 'default' }, // For multi-user support later
+    // The tempId from the client is used for broadcast logic but not saved to the DB.
+    tempId: { type: String, select: false }
 }, {
     timestamps: true
 });
@@ -41,9 +40,9 @@ const taskSchema = new mongoose.Schema({
 const Task = mongoose.model('Task', taskSchema);
 
 // Middleware
-app.use(helmet({
-    contentSecurityPolicy: false // Allow inline scripts for development
-}));
+// Using default helmet settings is more secure than disabling CSP.
+// For production, you would want to configure this further.
+app.use(helmet());
 app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -99,11 +98,19 @@ app.get('/api/tasks/:id', async (req, res) => {
 // Create new task
 app.post('/api/tasks', async (req, res) => {
     try {
-        const task = new Task(req.body);
+        // tempId is used for WebSocket logic but not saved
+        const { tempId, ...taskData } = req.body;
+        const task = new Task(taskData);
         await task.save();
 
+        const taskResponse = task.toObject();
+        // Echo the tempId back so the originating client can ignore the broadcast
+        if (tempId) {
+            taskResponse.tempId = tempId;
+        }
+
         // Broadcast to all connected WebSocket clients
-        broadcast('task:created', task);
+        broadcast('task:created', taskResponse);
 
         res.status(201).json(task);
     } catch (error) {
@@ -228,49 +235,61 @@ function broadcast(type, data) {
     });
 }
 
-// Graceful shutdown
-const gracefulShutdown = async () => {
-    console.log('Shutting down server...');
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} received. Shutting down server...`);
 
     try {
-        // Close HTTP server
+        // Close HTTP server first
         if (server) {
-            await new Promise((resolve) => {
-                server.close(resolve);
+            await new Promise((resolve, reject) => {
+                server.close((err) => {
+                    if (err) {
+                        console.error('Error closing HTTP server:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ HTTP server closed');
+                        resolve();
+                    }
+                });
             });
-            console.log('HTTP server closed');
         }
 
-        // Close WebSocket server
-        if (wss) {
+        // Close WebSocket connections
+        if (wss && wss.clients) {
+            console.log(`Closing ${wss.clients.size} WebSocket connections...`);
+            wss.clients.forEach(client => client.close());
             wss.close();
-            console.log('WebSocket server closed');
+            console.log('✅ WebSocket server closed');
         }
 
-        // Close MongoDB connection (Promise-based)
+        // Close MongoDB connection (Promise-based, no callback)
         await mongoose.connection.close();
-        console.log('MongoDB connection closed');
+        console.log('✅ MongoDB connection closed');
 
+        console.log('Server shutdown complete');
         process.exit(0);
+
     } catch (error) {
-        console.error('Error during shutdown:', error);
+        console.error('❌ Error during shutdown:', error);
         process.exit(1);
     }
 };
 
-// Handle shutdown signals
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+// Listen for shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // For nodemon
 
-// Error handling
+// Handle uncaught exceptions and rejections
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
-    process.exit(1);
+    gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    process.exit(1);
+    gracefulShutdown('UNHANDLED_REJECTION');
 });
 
 module.exports = app;
